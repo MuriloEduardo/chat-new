@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Chat</title>
+	<style>
+		body,html {margin:0;}
+		* {box-sizing: border-box;}
+		#chat {
+			width: 90%;
+			height: 300px;
+			margin: 0 auto;
+			background-color: #f9f9f9;
+			padding: 15px;
+			border-radius: 0 0 4px 4px;
+			overflow-y: auto;
+			overflow-x: hidden;
+		}
+		.form-control {
+			width: 90%;
+			height: 100px;
+			margin: 15px auto;
+			display: block;
+			border: solid thin #f1f1f1;
+			border-radius: 4px;
+			padding: 15px;
+			font-size: 16px;
+		}
+		.btn-primary {
+			width: 90%;
+			margin: 0 auto;
+			padding: 15px;
+			font-size: 16px;
+			cursor: pointer;
+			display: block;
+			background-color: #e62117;
+			color: #fff;
+			border: none;
+			border-radius: 4px;
+		}
+		#body-chat {
+			display: none;
+		}
+		#chatWrap {
+			float: left;
+		}
+		#nickError {
+			width: 90%;
+			margin: 15px auto;
+			display: block;
+			color: #e62117;
+		}
+		.sussurro {
+			color: gray;
+			font-style: italic;
+		}
+		.erro {
+			color: #e62117;	
+		}
+	</style>
+</head>
+<body>
+	<div id="nick-name">
+		<form id="set-nickname">
+			<p id="nickError"></p>
+			<input type="text" id="nickname" class="form-control" placeholder="Digite seu nickname">
+			<input type="submit" value="Enviar" class="btn-primary">
+		</form>
+	</div>
+	<div id="body-chat">
+		<div id="chatWrap">
+			<div id="chat"></div>
+			<form id="send-message">
+				<textarea id="message" class="form-control" placeholder="Digite sua mensagem"></textarea>
+				<input type="submit" value="Enviar" class="btn-primary">
+			</form>
+		</div>
+		<div id="users"></div>
+	</div>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.5.1/socket.io.js"></script>
+	<script>
+		jQuery(function($) {
+			var socket = io.connect('http://127.0.0.1:3000/');
+			
+			var $messageForm = $('#send-message'),
+				$nickForm = $('#set-nickname'),
+				$nickError = $('#nickError'),
+				$nickBox = $('#nickname'),
+				$messageBox = $('#message'),
+				$chat = $('#chat'),
+				$users = $('#users');
+
+			function displayMsg(data) {
+				$chat.append('<div class="cada-msg"><b>' + data.nick + ':</b> ' + data.msg + '</div>');
+				$chat.animate({ scrollTop: $(this).height() }, "slow");
+			}
+
+			$messageForm.submit(function(e) {
+				e.preventDefault();
+				socket.emit('enviar mensagem', $messageBox.val(), function(data) {
+					$chat.append('<div class="cada-msg erro">' + data + '</div>');
+				});
+				$messageBox.val('').focus();
+			});
+
+			socket.on('nova mensagem', function(data) {
+				displayMsg(data);
+			});
+
+			$nickForm.submit(function(e) {
+				e.preventDefault();
+				socket.emit('novo usuario', $nickBox.val(), function(data) {
+					if(data) {
+						$('#nick-name').fadeOut();
+						$('#body-chat').fadeIn();
+					} else {
+						$nickError.html('Este nickname já está sendo utilizado, tente outro!');
+					}
+				});
+				$nickBox.val('');
+			});
+
+			socket.on('usuarios', function(data) {
+				var html = '';
+				for (var i=0;i<data.length;i++) {
+					html += data[i] + '<br/>';
+				}
+				$users.html(html);
+			});
+
+			socket.on('sussurro', function(data) {
+				$chat.append('<div class="cada-msg sussurro"><b>' + data.nick + ':</b> ' + data.msg + '</div>');
+			})
+
+			socket.on('mensagens antigas', function(docs) {
+				console.log(docs)
+				for (var i = (docs.length - 1); i >= 0; i--) {
+					displayMsg(docs[i]);
+				}
+			});
+		});
+	</script>
+</body>
+</html>
